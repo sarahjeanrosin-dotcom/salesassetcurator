@@ -1,30 +1,14 @@
-import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
-import { SEARCH_QUEUE_NAME, type SearchJobData } from '@/jobs/search-job';
+import { runSearch } from '@/services/search-orchestrator';
 
-function createConnection(): IORedis {
-  return new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-    maxRetriesPerRequest: null,
+/**
+ * Enqueues a search by running it as a background async task in the same
+ * Node.js process. No Redis or external queue required.
+ *
+ * For production scale, swap this for a proper queue (BullMQ + Redis, etc.).
+ */
+export function enqueueSearch(searchId: string): void {
+  // Fire-and-forget — the API route responds immediately
+  runSearch(searchId).catch((err: unknown) => {
+    console.error(`[queue] Search ${searchId} failed:`, err);
   });
-}
-
-let _queue: Queue<SearchJobData> | null = null;
-
-function getQueue(): Queue<SearchJobData> {
-  if (!_queue) {
-    _queue = new Queue<SearchJobData>(SEARCH_QUEUE_NAME, {
-      connection: createConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5_000 },
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 50 },
-      },
-    });
-  }
-  return _queue;
-}
-
-export async function enqueueSearch(searchId: string): Promise<void> {
-  await getQueue().add('run-search', { searchId });
 }
