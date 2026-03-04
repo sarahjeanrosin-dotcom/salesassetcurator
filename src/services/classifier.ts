@@ -80,7 +80,7 @@ ${JSON.stringify(itemsJson, null, 2)}`;
     const text = msg.content[0]?.type === 'text' ? msg.content[0].text : '[]';
     const classifications: ClassificationResult[] = parseClassifications(text, batch);
 
-    return batch.map((raw, idx) => {
+    return batch.map((raw, _idx) => {
       const classification = classifications.find((c) => c.url === raw.url) ?? {
         url: raw.url,
         contentType: 'other' as ContentType,

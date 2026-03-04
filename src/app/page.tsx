@@ -167,7 +167,7 @@ export default function HomePage() {
         ) : (
           <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white">
             <p className="text-sm text-gray-400">
-              Enter a company name and click "Find content" to get started
+              Enter a company name and click &quot;Find content&quot; to get started
             </p>
           </div>
         )}
