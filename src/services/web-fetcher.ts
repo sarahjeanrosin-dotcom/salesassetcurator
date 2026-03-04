@@ -14,6 +14,16 @@ interface SerperResponse {
 
 const SERPER_URL = 'https://google.serper.dev/search';
 
+// Domains that are never the company's own site
+const THIRD_PARTY_DOMAINS = new Set([
+  'linkedin.com', 'twitter.com', 'x.com', 'facebook.com', 'instagram.com',
+  'youtube.com', 'reddit.com', 'wikipedia.org', 'bloomberg.com', 'forbes.com',
+  'techcrunch.com', 'g2.com', 'capterra.com', 'trustpilot.com', 'glassdoor.com',
+  'indeed.com', 'crunchbase.com', 'pitchbook.com', 'prnewswire.com',
+  'businesswire.com', 'globenewswire.com', 'slideshare.net', 'speakerdeck.com',
+  'vimeo.com', 'medium.com', 'substack.com',
+]);
+
 // Serper expects MM/DD/YYYY; ISO dates are YYYY-MM-DD
 function isoToSerperDate(iso: string): string {
   const [year, month, day] = iso.split('-');
@@ -45,12 +55,41 @@ async function executeQuery(query: string, dateFrom?: string, dateTo?: string): 
   }
 }
 
+/**
+ * Searches for the company name without quotes to get a broad result set,
+ * then picks the most-frequently-appearing non-third-party domain.
+ * Returns null if no domain can be identified.
+ */
+export async function discoverCompanyDomain(companyName: string): Promise<string | null> {
+  const results = await executeQuery(companyName);
+  const counts = new Map<string, number>();
+
+  for (const r of results) {
+    try {
+      const hostname = new URL(r.url).hostname.replace(/^www\./, '');
+      if (!THIRD_PARTY_DOMAINS.has(hostname)) {
+        counts.set(hostname, (counts.get(hostname) ?? 0) + 1);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }
+
+  if (counts.size === 0) return null;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
 export async function fetchWebResults(
   companyName: string,
   constraints: SearchConstraints,
 ): Promise<RawResult[]> {
   const q = `"${companyName}"`;
-  const queries = [
+
+  // Phase 1: discover the company's own domain so we can query it directly
+  const domain = await discoverCompanyDomain(companyName);
+
+  // Phase 2: broad web queries (mentions across the internet)
+  const broadQueries = [
     // Blog & articles
     `${q} blog`,
     `${q} article`,
@@ -85,8 +124,26 @@ export async function fetchWebResults(
     `${q} site:vimeo.com`,
   ];
 
+  // Phase 3: site-specific queries — crawl the company's own domain directly
+  // These reliably surface pages like /webinars/, /blog/, /resources/ etc.
+  const siteQueries: string[] = domain
+    ? [
+        `site:${domain}`,
+        `site:${domain} webinar`,
+        `site:${domain} blog`,
+        `site:${domain} resources OR resource-center`,
+        `site:${domain} "case study"`,
+        `site:${domain} filetype:pdf`,
+        `site:${domain} ebook`,
+        `site:${domain} podcast`,
+        `site:${domain} pricing`,
+      ]
+    : [];
+
+  const allQueries = [...broadQueries, ...siteQueries];
+
   const results = await Promise.all(
-    queries.map((query) => executeQuery(query, constraints.dateFrom, constraints.dateTo)),
+    allQueries.map((query) => executeQuery(query, constraints.dateFrom, constraints.dateTo)),
   );
 
   const all = results.flat();
