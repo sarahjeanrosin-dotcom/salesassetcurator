@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SavedSearch {
+  id          String       @id @default(cuid())
+  companyName String
+  constraints Json
+  status      SearchStatus @default(PENDING)
+  lastRunAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  assets      SalesAsset[]
+  insight     Insight?
+}
+
+model SalesAsset {
+  id          String      @id @default(cuid())
+  searchId    String
+  search      SavedSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  url         String
+  title       String
+  platform    String
+  contentType String
+  publishedAt DateTime?
+  views       Int?
+  impressions Int?
+  comments    Int?
+  likes       Int?
+  shares      Int?
+  summary     String?
+  createdAt   DateTime    @default(now())
+
+  @@index([searchId])
+}
+
+model Insight {
+  id               String      @id @default(cuid())
+  searchId         String      @unique
+  search           SavedSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  contentPatterns  String
+  primarySellFocus String
+  audienceProfile  String
+  generatedAt      DateTime    @default(now())
+}
+
+enum SearchStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
