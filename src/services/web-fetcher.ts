@@ -14,13 +14,19 @@ interface SerperResponse {
 
 const SERPER_URL = 'https://google.serper.dev/search';
 
+// Serper expects MM/DD/YYYY; ISO dates are YYYY-MM-DD
+function isoToSerperDate(iso: string): string {
+  const [year, month, day] = iso.split('-');
+  return `${month}/${day}/${year}`;
+}
+
 async function executeQuery(query: string, dateFrom?: string, dateTo?: string): Promise<RawResult[]> {
   const apiKey = process.env.SERPER_API_KEY;
   if (!apiKey) return [];
 
-  const body: Record<string, unknown> = { q: query, num: 10 };
+  const body: Record<string, unknown> = { q: query, num: 20 };
   if (dateFrom && dateTo) {
-    body['tbs'] = `cdr:1,cd_min:${dateFrom},cd_max:${dateTo}`;
+    body['tbs'] = `cdr:1,cd_min:${isoToSerperDate(dateFrom)},cd_max:${isoToSerperDate(dateTo)}`;
   }
 
   try {
@@ -45,16 +51,38 @@ export async function fetchWebResults(
 ): Promise<RawResult[]> {
   const q = `"${companyName}"`;
   const queries = [
-    q,
-    `${q} whitepaper OR "white paper" filetype:pdf`,
+    // Blog & articles
+    `${q} blog`,
+    `${q} article`,
+    // Landing & product pages
+    `${q} "landing page"`,
+    `${q} pricing`,
+    `${q} features OR solutions OR "product overview"`,
+    `${q} "get started" OR "free trial" OR "sign up" OR demo`,
+    // Long-form gated content
+    `${q} "white paper" OR whitepaper filetype:pdf`,
     `${q} ebook filetype:pdf`,
+    `${q} ebook "download"`,
+    `${q} "data sheet" OR datasheet OR "one pager" OR "one-pager"`,
+    // Case studies
     `${q} "case study"`,
+    `${q} "customer story" OR "success story" OR "customer spotlight"`,
+    // Webinars
     `${q} webinar`,
     `${q} "on-demand" webinar`,
-    `${q} blog`,
+    `${q} "register now" webinar OR "upcoming webinar"`,
+    // Podcasts
+    `${q} podcast`,
+    // Press & news
     `${q} "press release"`,
+    `${q} site:prnewswire.com`,
+    `${q} site:businesswire.com`,
+    // Slide decks & visual assets
     `${q} infographic`,
     `${q} site:slideshare.net`,
+    `${q} site:speakerdeck.com`,
+    // Video (non-YouTube)
+    `${q} site:vimeo.com`,
   ];
 
   const results = await Promise.all(
