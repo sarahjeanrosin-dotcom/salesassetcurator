@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "worker": "tsx src/jobs/worker.ts",
     "lint": "next lint",
     "test": "vitest",
     "db:migrate": "prisma migrate dev",
@@ -18,10 +17,8 @@
     "@prisma/client": "^5.22.0",
     "@tanstack/react-table": "^8.20.5",
     "axios": "^1.7.9",
-    "bullmq": "^5.30.1",
     "clsx": "^2.1.1",
     "googleapis": "^144.0.0",
-    "ioredis": "^5.4.1",
     "next": "^15.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

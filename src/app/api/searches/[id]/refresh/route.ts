@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { searchQueue } from '@/lib/queue';
+import { enqueueSearch } from '@/lib/queue';
 
 // POST /api/searches/:id/refresh — re-enqueue an existing search
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +20,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     data: { status: 'PENDING' },
   });
 
-  await searchQueue.add('search', { searchId: id }, { attempts: 2 });
+  enqueueSearch(id);
 
   return NextResponse.json({ queued: true });
 }

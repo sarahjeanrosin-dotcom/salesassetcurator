@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { searchQueue } from '@/lib/queue';
+import { enqueueSearch } from '@/lib/queue';
 import type { CreateSearchRequest } from '@/types';
 
 // GET /api/searches — list all saved searches
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await searchQueue.add('search', { searchId: search.id }, { attempts: 2 });
+  enqueueSearch(search.id);
 
   return NextResponse.json(search, { status: 201 });
 }
