@@ -1,46 +1,38 @@
 import axios from 'axios';
 import type { RawResult, SearchConstraints } from '@/types';
 
-interface GoogleSearchItem {
+interface SerperOrganicResult {
   title: string;
   link: string;
   snippet: string;
-  pagemap?: {
-    metatags?: Array<{ 'article:published_time'?: string; 'og:type'?: string }>;
-  };
+  date?: string;
 }
 
-interface GoogleSearchResponse {
-  items?: GoogleSearchItem[];
+interface SerperResponse {
+  organic?: SerperOrganicResult[];
 }
 
-const BASE_URL = 'https://www.googleapis.com/customsearch/v1';
+const SERPER_URL = 'https://google.serper.dev/search';
 
 async function executeQuery(query: string, dateFrom?: string, dateTo?: string): Promise<RawResult[]> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const cseId = process.env.GOOGLE_CSE_ID;
-  if (!apiKey || !cseId) return [];
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) return [];
 
-  const params: Record<string, string> = {
-    key: apiKey,
-    cx: cseId,
-    q: query,
-    num: '10',
-  };
-
-  if (dateFrom) params['dateRestrict'] = '';
+  const body: Record<string, unknown> = { q: query, num: 10 };
   if (dateFrom && dateTo) {
-    params['sort'] = `date:r:${dateFrom.replace(/-/g, '')}:${dateTo.replace(/-/g, '')}`;
+    body['tbs'] = `cdr:1,cd_min:${dateFrom},cd_max:${dateTo}`;
   }
 
   try {
-    const res = await axios.get<GoogleSearchResponse>(BASE_URL, { params });
-    return (res.data.items ?? []).map((item) => ({
+    const res = await axios.post<SerperResponse>(SERPER_URL, body, {
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+    });
+    return (res.data.organic ?? []).map((item) => ({
       url: item.link,
       title: item.title,
       snippet: item.snippet,
       platform: 'web' as const,
-      publishedAt: item.pagemap?.metatags?.[0]?.['article:published_time'],
+      publishedAt: item.date,
     }));
   } catch {
     return [];
