@@ -14,6 +14,8 @@ export async function runSearch(searchId: string): Promise<void> {
   const search = await prisma.savedSearch.findUnique({ where: { id: searchId } });
   if (!search) throw new Error(`Search ${searchId} not found`);
 
+  console.log(`[search] Starting ${searchId} for "${search.companyName}"`);
+
   await prisma.savedSearch.update({
     where: { id: searchId },
     data: { status: 'RUNNING', lastRunAt: new Date() },
@@ -39,10 +41,12 @@ export async function runSearch(searchId: string): Promise<void> {
     ]);
 
     const allRaw = fetcherResults.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+    console.log(`[search] ${searchId} — raw results: ${allRaw.length} items`);
 
     // Filter by content type if requested
     // (classifier determines content type; we post-filter after classification)
     const classified = await classifyResults(allRaw);
+    console.log(`[search] ${searchId} — classified: ${classified.length} assets`);
 
     const filtered =
       constraints.contentTypes && constraints.contentTypes.length > 0
@@ -85,7 +89,9 @@ export async function runSearch(searchId: string): Promise<void> {
       where: { id: searchId },
       data: { status: 'COMPLETED' },
     });
+    console.log(`[search] ${searchId} — done, ${filtered.length} assets saved`);
   } catch (err) {
+    console.error(`[search] ${searchId} — failed:`, err);
     await prisma.savedSearch.update({
       where: { id: searchId },
       data: { status: 'FAILED' },
