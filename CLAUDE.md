@@ -27,6 +27,9 @@ engagement data, and generates meaningful insights about content patterns, messa
 - Where available, the AI attaches **metrics** (views, impressions) and **engagement** (comments,
   likes, shares). Fields are omitted — not shown as zero — when data is unavailable.
 - The AI **continues searching until all sources are found** (exhaustive, not just top results).
+- Web search must use **targeted query variants** to surface long-form assets: e.g.
+  `"[company]" filetype:pdf` for white papers, `"[company]" webinar` for webinars,
+  `"[company]" site:slideshare.net` for slide decks.
 - The AI generates **insights**: patterns in the content, what is primarily being sold,
   and who the apparent audience is.
 - Searches run **in the background** — the user triggers a search and is notified when it completes.
@@ -173,6 +176,55 @@ salesassetcurator/
 
 ## Core Data Model
 
+### Content Types
+
+The `ContentType` enum must cover web-sourced long-form assets in addition to social and video:
+
+```typescript
+type ContentType =
+  | 'article'
+  | 'blog_post'
+  | 'landing_page'
+  | 'white_paper'       // Downloadable PDF/doc research or thought leadership
+  | 'ebook'             // Long-form downloadable guide
+  | 'case_study'        // Customer success story
+  | 'webinar'           // Live or recorded online presentation (web or YouTube)
+  | 'webinar_recording' // On-demand replay hosted on web or YouTube
+  | 'video'             // General video (YouTube, Vimeo, embedded)
+  | 'podcast_episode'   // Audio/video podcast
+  | 'social_post'       // LinkedIn, Twitter/X, Facebook, Instagram, Reddit post
+  | 'press_release'
+  | 'product_page'
+  | 'one_pager'
+  | 'slide_deck'        // SlideShare, embedded presentation
+  | 'infographic'
+  | 'other';
+```
+
+Webinars and white papers are **first-class content types**. The web fetcher must use targeted
+queries to surface them (e.g. `site:example.com filetype:pdf`, `"webinar" "company name"`).
+
+### Results Table — Columns and Sorting
+
+The results table must support **sorting and filtering on every column**. Default sort: `publishedAt` descending.
+
+| Column | Type | Sortable | Filterable |
+|--------|------|----------|------------|
+| Title | string | yes | keyword search |
+| Platform | enum | yes | multi-select |
+| Content Type | enum | yes | multi-select |
+| Published Date | date | yes | date range |
+| URL / Source | string | no | — |
+| Views | number | yes | range |
+| Engagement | number (total) | yes | range |
+| AI Summary | string | no | keyword search |
+
+When a metric cell has no data, render an em dash (`—`), not `0`.
+
+---
+
+## Core Data Model
+
 ```typescript
 // A piece of discovered client-facing content
 interface SalesAsset {
@@ -181,7 +233,7 @@ interface SalesAsset {
   url: string;
   title: string;
   platform: Platform;                  // 'web' | 'youtube' | 'linkedin' | 'twitter' | ...
-  contentType: ContentType;            // 'article' | 'video' | 'social_post' | 'landing_page' | ...
+  contentType: ContentType;            // see ContentType definition above
   publishedAt?: Date;
   metrics?: {                          // Only populated when data is available
     views?: number;
@@ -226,7 +278,7 @@ interface Insight {
 ```
 
 **Key rule:** Metrics and engagement fields must be `undefined` (not `null` or `0`) when no data
-exists. The UI skips rendering the cell when the value is undefined.
+exists. The UI renders `—` (em dash) in the table cell when the value is undefined — never `0`.
 
 ---
 
